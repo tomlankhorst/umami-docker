@@ -1,0 +1,48 @@
+version: "3.6"
+
+services:
+  umami: 
+    image: ghcr.io/mikecao/umami:postgresql-2575cbf
+    labels:
+      - "traefik.enable=true"
+        
+      # http
+      - "traefik.http.routers.webhub.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.webhub.entrypoints=web"
+      - "traefik.http.routers.webhub.middlewares=redirect-https@file"
+
+      # https
+      - "traefik.http.routers.webhub-secure.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.webhub-secure.tls.certresolver=leresolver"
+      - "traefik.http.routers.webhub-secure.entrypoints=websecure"
+    networks:
+    - traefik 
+    - db-net
+    environment:
+      DATABASE_URL: postgresql://umami:umami@db:5432/umami
+      DATABASE_TYPE: postgresql
+    restart: unless-stopped
+    depends_on: 
+    - db
+
+  db:
+    image: postgres:12-alpine
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: umami
+    volumes:
+    - ./schema.postgresql.sql:/docker-entrypoint-initdb.d/schema.postgresql.sql:ro
+    - db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+    - db-net
+
+networks:
+  traefik:
+    external: true 
+    name: traefik 
+  db-net:
+
+volumes:
+  db-data:
